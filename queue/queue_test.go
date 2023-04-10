@@ -6,7 +6,7 @@ import (
 )
 
 func TestAddNode(t *testing.T) {
-	q := Queue{size: 5}
+	q := Queue{Size: 5}
 	q.AddNode(2.5)
 	q.AddNode(4.3)
 	q.AddNode(4.3)
@@ -14,18 +14,23 @@ func TestAddNode(t *testing.T) {
 }
 
 func TestAddNodeInFront(t *testing.T) {
-	q := Queue{size: 5}
+	q := Queue{Size: 5}
 	q.AddNodeInFront(17)
 	q.AddNodeInFront(33)
 	fmt.Println(q)
 }
 
 func TestMoveAlong(t *testing.T) {
-	q := Queue{size: 3}
-
+	q := Queue{Size: 3}
+	q.AddNode(3)
+	//q.AddNode(4)
+	//q.AddNode(5)
 	fmt.Printf("Before: %s\n", q)
-	q.MoveAlong(0)
-	q.MoveAlong(13)
+	q.MoveAlong(22)
+	fmt.Printf("After: %s\n", q)
+	q.MoveAlong(33)
+	fmt.Printf("After: %s\n", q)
+	q.MoveAlong(44)
 	fmt.Printf("After: %s\n", q)
 
 }

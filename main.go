@@ -1,6 +1,7 @@
 package main
 
 import (
+	q "bcamp/rk4/queue"
 	"bcamp/rk4/rk"
 	"bcamp/rk4/vec"
 	"image/color"
@@ -12,10 +13,11 @@ import (
 )
 
 func spring(t float64, y vec.Vec) vec.Vec {
+	forceMul := 300.0
 	m := 10.0
-	b := 10.0
-	k := 5000.0
-	F := 0.0
+	b := 50.0
+	k := 300.0
+	F := -currentForce * forceMul
 
 	dx0 := y[1]
 	dx1 := (F - b*y[1] - k*y[0]) / m
@@ -46,14 +48,15 @@ func min(a, b float64) float64 {
 
 func (s *Spring) draw(screen *ebiten.Image) {
 	end := Point{s.start.x, s.start.y + s.length + s.stretch}
-	vector.StrokeLine(screen, float32(s.start.x), float32(s.start.y), float32(end.x), float32(end.y), float32(min(max(4.0-(s.stretch/10.0), 2.0), 4.0)), color.White, true)
-	vector.DrawFilledCircle(screen, float32(s.start.x), float32(end.y), 30, color.White, false)
+	vector.StrokeLine(screen, float32(s.start.x), float32(s.start.y), float32(end.x), float32(end.y), 1, color.White, false)
+	vector.StrokeCircle(screen, float32(s.start.x), float32(end.y), 20, 2, color.White, false)
 	vector.StrokeLine(screen, float32(s.start.x-20), float32(s.start.y), float32(s.start.x+20), float32(s.start.y), 2.0, color.White, true)
 }
 
 type Game struct {
-	spring Spring
-	tps    int
+	spring        Spring
+	tps           int
+	input, output q.Queue
 }
 
 type Point struct{ x, y float64 }
@@ -67,6 +70,8 @@ type Body struct {
 var mousePos Point
 var mouseClick, pMouseClick bool
 
+var currentForce float64
+
 var c map[string]color.Color = map[string]color.Color{
 	"red":   color.RGBA{255, 0, 0, 255},
 	"black": color.RGBA{0, 0, 0, 255},
@@ -78,7 +83,7 @@ var c map[string]color.Color = map[string]color.Color{
 func (g *Game) Update() error {
 	pressed := inpututil.IsMouseButtonJustPressed(ebiten.MouseButton0)
 	released := inpututil.IsMouseButtonJustReleased(ebiten.MouseButton0)
-	stretchPrev := g.spring.stretch
+	//stretchPrev := g.spring.stretch
 
 	if pressed && !mouseClick {
 		mouseClick = true
@@ -95,13 +100,22 @@ func (g *Game) Update() error {
 
 	deltaT := 1 / float64(g.tps)
 
+	// if mouseClick {
+	// 	g.spring.stretch = mousePos.y - g.spring.start.y - g.spring.length
+	// 	g.spring.vel = (g.spring.stretch - stretchPrev) / deltaT
+	// } else {
+	next_state := rk.Step(spring, vec.Vec{g.spring.stretch, g.spring.vel}, 0, deltaT)
+	g.spring.stretch = next_state[0]
+	g.spring.vel = next_state[1]
+	// }
+
+	//fmt.Println(g.output)
+	g.output.MoveAlong(-g.spring.stretch)
+
 	if mouseClick {
-		g.spring.stretch = mousePos.y - g.spring.start.y - g.spring.length
-		g.spring.vel = (g.spring.stretch - stretchPrev) / deltaT
+		currentForce = g.input.MoveAlong(400 - mousePos.y)
 	} else {
-		next_state := rk.Step(spring, vec.Vec{g.spring.stretch, g.spring.vel}, 0, deltaT)
-		g.spring.stretch = next_state[0]
-		g.spring.vel = next_state[1]
+		currentForce = g.input.MoveAlong(0)
 	}
 
 	return nil
@@ -109,6 +123,9 @@ func (g *Game) Update() error {
 
 // ebitenutil.DebugPrint(screen, fmt.Sprintf("FPS: %.2f, TPS: %.2f", ebiten.ActualFPS(), ebiten.ActualTPS()))
 func (g *Game) Draw(screen *ebiten.Image) {
+
+	g.input.Graph(screen, 0, 400, 1, 1, color.RGBA{0, 0, 255, 255})
+	g.output.Graph(screen, 500, 400, 1, 1, color.RGBA{255, 0, 0, 255})
 	g.spring.draw(screen)
 }
 
@@ -124,8 +141,13 @@ func main() {
 			vel:     0,
 			length:  300,
 		},
-		tps: 100,
+		tps:    100,
+		input:  q.Queue{Size: 500},
+		output: q.Queue{Size: 800},
 	}
+
+	g.output.AddNode(0)
+	g.input.AddNode(0)
 
 	ebiten.SetWindowSize(1280, 720)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
